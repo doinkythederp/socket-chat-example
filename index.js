@@ -20,7 +20,11 @@ io.on('connection', socket => {
 	socket.on('disconnect', reason => {
 		sockets.delete(socket);
 		console.log('User disconnected:', reason);
-	})
+	});
+	socket.on('message', ( /** @type {{ msg: string }} */ { msg }) => {
+		console.log('>', msg);
+		socket.broadcast.emit('message', { msg });
+	});
 });
 
 server.listen(process.env.PORT || 3000, () => {
@@ -30,11 +34,11 @@ server.listen(process.env.PORT || 3000, () => {
 process.once('SIGINT', stop).on('SIGQUIT', stop);
 
 async function stop() {
+	console.log('Disconnecting sessions...');
+	sockets.forEach(socket => void socket.disconnect(true));
 	console.log('Stopping server...');
 	server.close(err => {
 		if (err) throw err;
-		console.log('Disconnecting sessions...');
-		sockets.forEach(socket => void socket.disconnect(true));
 		console.log('Done!');
 	})
 }
