@@ -17,7 +17,8 @@
   },
   "homepage": "https://github.com/socketio/chat-example#readme",
   "dependencies": {
-    "express": "^4.17.1"
+    "express": "^4.17.1",
+    "socket.io": "^4.1.2"
   },
   "devDependencies": {
     "@types/express": "^4.17.12",
