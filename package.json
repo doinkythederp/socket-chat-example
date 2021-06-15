@@ -1,0 +1,26 @@
+{
+  "name": "socket-chat-example",
+  "version": "0.0.1",
+  "description": "socket.io test chat app",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/socketio/chat-example.git"
+  },
+  "author": "socket.io",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/socketio/chat-example/issues"
+  },
+  "homepage": "https://github.com/socketio/chat-example#readme",
+  "dependencies": {
+    "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.12",
+    "@types/node": "^15.12.2"
+  }
+}
