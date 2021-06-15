@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Socket.IO Chat</title>
-    <script src="https://cdn.socket.io/4.1.2/socket.io.min.js" integrity="sha384-toS6mmwu70G0fw54EGlWWeA4z3dyJ+dlXBtSURSKN4vyRFOcxd3Bzjj/AoOwY+Rg" crossorigin="anonymous"></script>
+    <script src="/socket.io.min.js" integrity="sha384-toS6mmwu70G0fw54EGlWWeA4z3dyJ+dlXBtSURSKN4vyRFOcxd3Bzjj/AoOwY+Rg" crossorigin="anonymous"></script>
     <script src="/index.js" defer></script>
     <style>
       body {
@@ -15,7 +15,7 @@
           Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
         background-color: #555;
       }
-      #form {
+      #send {
         background-color: rgba(0, 0, 0, 0.15);
         padding: 0.25rem;
         position: fixed;
@@ -28,7 +28,7 @@
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
       }
-      #input {
+      #send-box {
         border: none;
         padding: 0 1rem;
         flex-grow: 1;
@@ -41,7 +41,7 @@
       #input:focus {
         outline: none;
       }
-      #form > button {
+      #send > button {
         background-color: #555;
         border: none;
         padding: 0 1rem;
@@ -53,7 +53,7 @@
         font-weight: 300;
       }
 
-      #form > button:hover {
+      #send > button:hover {
         background-color: rgba(0, 0, 0, 0.15);
       }
 
@@ -69,6 +69,7 @@
         box-sizing: border-box;
         color: #ddd;
         font-weight: 700;
+        overflow: hidden;
       }
       #messages > li:nth-child(odd) {
         background: #484848;
@@ -86,11 +87,11 @@
   </head>
   <body>
     <div id="main">
-      <ul id="messages"><li>1</li><li>2</li><li>3</li></ul>
+      <ul id="messages"></ul>
     </div>
-    <form id="form" action="">
-      <input id="input" autocomplete="off" />
-      <button type="button">Send</button>
+    <form id="send">
+      <input id="send-box" autocomplete="off" />
+      <button type="submit">Send</button>
     </form>
   </body>
 </html>
