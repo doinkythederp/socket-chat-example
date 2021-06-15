@@ -8,6 +8,11 @@
     <script src="/socket.io.min.js" integrity="sha384-toS6mmwu70G0fw54EGlWWeA4z3dyJ+dlXBtSURSKN4vyRFOcxd3Bzjj/AoOwY+Rg" crossorigin="anonymous"></script>
     <script src="/index.js" defer></script>
     <style>
+      .is-invalid {
+        color: #d35f74; 
+        font-weight: 900;
+      }
+
       body {
         margin: 0;
         padding-bottom: 3rem;
@@ -48,12 +53,20 @@
         margin: 0.25rem;
         border-radius: 3px;
         outline: none;
-        color: #ddd;
         cursor: pointer;
+      }
+
+      #send > button:not(.is-invalid) {
+        color: #ddd;
         font-weight: 300;
       }
 
-      #send > button:hover {
+      #send > button:hover.is-invalid {
+        background-color: #d35f74;
+        color: #ddd;
+      }
+
+      #send > button:hover:not(.is-invalid) {
         background-color: rgba(0, 0, 0, 0.15);
       }
 
@@ -91,7 +104,7 @@
     </div>
     <form id="send">
       <input id="send-box" autocomplete="off" />
-      <button type="submit">Send</button>
+      <button type="submit" id="send-button">Send</button>
     </form>
   </body>
 </html>

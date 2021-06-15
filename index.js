@@ -22,6 +22,7 @@ io.on('connection', socket => {
 		console.log('User disconnected:', reason);
 	});
 	socket.on('message', ( /** @type {{ msg: string }} */ { msg }) => {
+		if (typeof msg !== 'string' || msg.length > 200) return;
 		console.log('>', msg);
 		socket.broadcast.emit('message', { msg });
 	});
