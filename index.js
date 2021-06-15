@@ -25,8 +25,9 @@ io.on('connection', socket => {
 		sockets.delete(socket);
 		console.log('User disconnected:', reason);
 	});
-	socket.on('message', async ( /** @type {{ msg: string }} */ { msg, nonce }) => {
+	socket.on('message', async ( /** @type {{ msg: string, nonce: string, timestamp: number }} */ { msg, nonce, timestamp }) => {
 		if (typeof msg !== 'string' || msg.length > 200) return;
+		if (timestamp - 8000 > Date.now()) return;
 		try {
 			await rateLimit.consume(socket.handshake.address);
 		} catch(rej) {
