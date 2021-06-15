@@ -5,7 +5,7 @@ const express = require('express');
 const app = express();
 
 app.get('/', (req, res) => {
-	res.send('<h1>Hello world!</h1>');
+	res.sendFile('./index.html', { root: process.cwd() });
 });
 
 /** @type {import('http').Server} */
