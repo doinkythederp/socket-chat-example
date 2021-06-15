@@ -18,6 +18,7 @@
   "homepage": "https://github.com/socketio/chat-example#readme",
   "dependencies": {
     "express": "^4.17.1",
+    "rate-limiter-flexible": "^2.2.2",
     "socket.io": "^4.1.2"
   },
   "devDependencies": {

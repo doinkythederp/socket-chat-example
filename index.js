@@ -9,6 +9,10 @@ const server = http.createServer(app);
 
 const { Server: ioServer } = require('socket.io');
 const io = new ioServer(server);
+
+const { RateLimiterMemory } = require('rate-limiter-flexible');
+const rateLimit = new RateLimiterMemory({ points: 8, duration: 8 });
+
 /** @type {Set<import('socket.io').Socket>} */
 var sockets = new Set();
 
@@ -21,8 +25,14 @@ io.on('connection', socket => {
 		sockets.delete(socket);
 		console.log('User disconnected:', reason);
 	});
-	socket.on('message', ( /** @type {{ msg: string }} */ { msg }) => {
+	socket.on('message', async ( /** @type {{ msg: string }} */ { msg, nonce }) => {
 		if (typeof msg !== 'string' || msg.length > 200) return;
+		try {
+			await rateLimit.consume(socket.handshake.address);
+		} catch(rej) {
+			return void socket.emit('rate-limit', { 'retry-ms': rej.msBeforeNext, nonce });
+		}
+		socket.emit('sent', nonce);
 		console.log('>', msg);
 		socket.broadcast.emit('message', { msg });
 	});

@@ -5,12 +5,17 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Socket.IO Chat</title>
+    <link rel="stylesheet" href="/fontawesome/css/all.css"/>
     <script src="/socket.io.min.js" integrity="sha384-toS6mmwu70G0fw54EGlWWeA4z3dyJ+dlXBtSURSKN4vyRFOcxd3Bzjj/AoOwY+Rg" crossorigin="anonymous"></script>
     <script src="/index.js" defer></script>
     <style>
       .is-invalid {
-        color: #d35f74; 
+        color: #d35f74 !important; 
         font-weight: 900;
+      }
+
+      .is-pending {
+        color: #aaa !important;
       }
 
       body {
@@ -82,7 +87,9 @@
         box-sizing: border-box;
         color: #ddd;
         font-weight: 700;
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: scroll;
+        overflow-wrap: break-word;
       }
       #messages > li:nth-child(odd) {
         background: #484848;
