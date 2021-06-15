@@ -55,13 +55,9 @@
 
       #messages {
         list-style-type: none;
+        width: 100%;
         margin: 0;
         padding: 0;
-        position: absolute;
-        top: auto;
-        height: auto;
-        bottom: 3rem;
-        width: 100%
       }
       #messages > li {
         padding: 1rem 1.5rem;
@@ -71,10 +67,21 @@
       #messages > li:nth-child(odd) {
         background: #484848;
       }
+
+      #main {
+        position: absolute;
+        width: 100%;
+        bottom: 0;
+        margin: 0;
+        padding: 0;
+        bottom: 3rem;
+      }
     </style>
   </head>
   <body>
-    <ul id="messages"><li>1!</li><li>2!</li><li>3!</li><li>4!</li></ul>
+    <div id="main">
+      <ul id="messages"><li>1</li><li>2</li><li>3</li></ul>
+    </div>
     <form id="form" action="">
       <input id="input" autocomplete="off" />
       <button type="button">Send</button>
