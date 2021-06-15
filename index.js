@@ -9,12 +9,16 @@ const server = http.createServer(app);
 
 const { Server: ioServer } = require('socket.io');
 const io = new ioServer(server);
+/** @type {Set<import('socket.io').Socket>} */
+var sockets = new Set();
 
 app.use(express.static(__dirname + '/static'));
 
 io.on('connection', socket => {
+	sockets.add(socket);
 	console.log('New Connection!');
 	socket.on('disconnect', reason => {
+		sockets.delete(socket);
 		console.log('User disconnected:', reason);
 	})
 });
@@ -23,18 +27,14 @@ server.listen(process.env.PORT || 3000, () => {
 	console.log(`Listening on http://${require('os').hostname() || 'localhost'}:${process.env.PORT || 3000}`)
 });
 
-process.on('SIGINT', stop);
+process.once('SIGINT', stop).on('SIGQUIT', stop);
 
 async function stop() {
-	console.log('Stopping!');
-	await Promise.all([
-		asPromise(io.close),
-		asPromise(server.close)
-	]);
-	console.log('Done!');
-
-}
-/** @param {(callback: (err?: any, out?: any) => void) => void} func */
-function asPromise(func) {
-	return new Promise((res, rej) => void func((err, out) => void(err ? rej(err) : res(out))));
+	console.log('Stopping server...');
+	server.close(err => {
+		if (err) throw err;
+		console.log('Disconnecting sessions...');
+		sockets.forEach(socket => void socket.disconnect(true));
+		console.log('Done!');
+	})
 }
