@@ -46,6 +46,7 @@ server.listen(process.env.PORT || 3000, () => {
 process.once('SIGINT', stop).on('SIGQUIT', stop);
 
 async function stop() {
+	console.log();
 	console.log('Disconnecting sessions...');
 	sockets.forEach(socket => void socket.disconnect(true));
 	console.log('Stopping server...');
