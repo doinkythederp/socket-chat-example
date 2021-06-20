@@ -25,9 +25,9 @@ const rateLimit = new RateLimiterMemory({ points: 8, duration: 8 });
 const fs = require('fs');
 const v8 = require('v8');
 /** @type {Array<Message>} */
-const messageHistory = v8.deserialize(fs.readFileSync(__dirname + '/messages.v8obj'));
+const messageHistory = v8.deserialize(fs.readFileSync(__dirname + '/messages.bin'));
 const messageHistoryInterval = setInterval(() => {
-	fs.writeFileSync(__dirname + '/messages.v8obj', v8.serialize(messageHistory));
+	fs.writeFileSync(__dirname + '/messages.bin', v8.serialize(messageHistory));
 }, 5000);
 
 /** @type {Set<import('socket.io').Socket>} */
@@ -105,7 +105,7 @@ async function stop() {
     if (err) throw err;
 		console.log('Saving message history...');
 		clearInterval(messageHistoryInterval);
-		fs.writeFileSync(__dirname + '/messages.v8obj', v8.serialize(messageHistory));
+		fs.writeFileSync(__dirname + '/messages.bin', v8.serialize(messageHistory));
     console.log('Done!');
 		process.exitCode = 0;
   });
