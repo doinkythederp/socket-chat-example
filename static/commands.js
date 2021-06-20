@@ -1,6 +1,8 @@
 /// <reference path="./index.js" />
 
 var shrugText = '¯\\_(ツ)_/¯';
+var flipText = '(╯°□°）╯︵ ┻━┻';
+var unflipText = '┬─┬ ノ( ゜-゜ノ)';
 
 var slashCommands = {
 	help: {
@@ -30,10 +32,34 @@ var slashCommands = {
 		client: false,
 		exec: function (args) {
 			let argsStr = args.join(' ');
-			if (args) {
-				sendMessage(args.join(' ') + ' ' + shrugText);
+			if (argsStr) {
+				sendMessage(argsStr + ' ' + shrugText);
 			} else {
 				sendMessage(shrugText);
+			}
+		}
+	},
+	tableflip: {
+		desc: 'Appends a tableflip (' + flipText + ') to your message',
+		client: false,
+		exec: function (args) {
+			let argsStr = args.join(' ');
+			if (argsStr) {
+				sendMessage(argsStr + ' ' + flipText);
+			} else {
+				sendMessage(flipText);
+			}
+		}
+	},
+	unflip: {
+		desc: 'Appends an unflip (' + unflipText + ') to your message',
+		client: false,
+		exec: function (args) {
+			let argsStr = args.join(' ');
+			if (argsStr) {
+				sendMessage(argsStr + ' ' + unflipText);
+			} else {
+				sendMessage(unflipText);
 			}
 		}
 	}
