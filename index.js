@@ -1,19 +1,34 @@
 /// <reference types='node' />
+/** @typedef {{ content: string, id: number, author: string, timestamp: Date }} Message */
 'use strict';
 
+// Config file
 const config = require('./config.json');
 
+// Express App
 const express = require('express');
 const app = express();
 
+// HTTP server
 const http = require('http');
 const server = http.createServer(app);
 
+// Socket.io server
 const { Server: ioServer } = require('socket.io');
 const io = new ioServer(server);
 
+// Socket.io ratelimit
 const { RateLimiterMemory } = require('rate-limiter-flexible');
 const rateLimit = new RateLimiterMemory({ points: 8, duration: 8 });
+
+// Message History handler
+const fs = require('fs');
+const v8 = require('v8');
+/** @type {Array<Message>} */
+const messageHistory = v8.deserialize(fs.readFileSync(__dirname + '/messages.v8obj'));
+const messageHistoryInterval = setInterval(() => {
+	fs.writeFileSync(__dirname + '/messages.v8obj', v8.serialize(messageHistory));
+}, 5000);
 
 /** @type {Set<import('socket.io').Socket>} */
 var sockets = new Set();
@@ -30,17 +45,17 @@ io.on('connection', (socket) => {
   socket.on(
     'message',
     async function (
-      /** @type {{ msg: string, nonce: string, timestamp: number }} */
-      { msg, timestamp },
+      /** @type {{ content: string, timestamp: string }} */
+      { content, timestamp },
       /** @type {(response: { status: 'success' | 'messageTimestampInvalid' } | { status: 'rateLimit', retryAfter: number } | { status: 'messageInvalid', maxLength?: number }) => void} */
       respond
     ) {
 			// message is not a string
-      if (typeof msg !== 'string')
+      if (typeof content !== 'string')
 				return void respond({ status: 'messageInvalid' });
 
 			// message is too long
-			if (msg.length > config.maxMessageLength)
+			if (content.length > config.maxMessageLength)
         return void respond({
           status: 'messageInvalid',
           maxLength: config.maxMessageLength
@@ -58,11 +73,17 @@ io.on('connection', (socket) => {
           retryAfter: rej.msBeforeNext
         });
       }
-      respond({ status: 'success' });
-      console.log('>', msg);
-      socket.broadcast.emit('message', { msg });
+			const messageID = messageHistory.length.toString();
+			const message = { content, author: 'Anonymous#0000', id: messageID, timestamp: new Date(timestamp) };
+			messageHistory.push(message);
+      respond({ status: 'success', message });
+      console.log('>', content);
+      socket.broadcast.emit('message', message);
     }
   );
+	socket.on('info', (/** @type {(info: { maxMessageLength: number }) => void} */ cb) => {
+		cb({ maxMessageLength: config.maxMessageLength });
+	});
 });
 
 server.listen(process.env.PORT || 3000, () => {
@@ -82,6 +103,10 @@ async function stop() {
   console.log('Stopping server...');
   server.close((err) => {
     if (err) throw err;
+		console.log('Saving message history...');
+		clearInterval(messageHistoryInterval);
+		fs.writeFileSync(__dirname + '/messages.v8obj', v8.serialize(messageHistory));
     console.log('Done!');
+		process.exitCode = 0;
   });
 }

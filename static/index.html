@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Socket.IO Chat</title>
     <link rel="stylesheet" href="/fontawesome/css/all.css"/>
-    <script src="/socket.io.min.js" integrity="sha384-toS6mmwu70G0fw54EGlWWeA4z3dyJ+dlXBtSURSKN4vyRFOcxd3Bzjj/AoOwY+Rg" crossorigin="anonymous"></script>
+    <script src="/socket.io.min.js" crossorigin="anonymous"></script>
+    <script src="/commands.js"></script>
     <script src="/index.js" defer></script>
     <style>
       .is-invalid {
@@ -80,15 +81,15 @@
         width: 100%;
         margin: 0;
         padding: 0;
+        overflow-y: auto;
       }
       #messages > li {
         padding: 1rem 1.5rem;
         width: 100%;
         box-sizing: border-box;
         color: #ddd;
-        font-weight: 700;
+        font-weight: 400;
         overflow-x: hidden;
-        overflow-y: scroll;
         overflow-wrap: break-word;
       }
       #messages > li:nth-child(odd) {
@@ -96,21 +97,35 @@
       }
 
       #main {
-        position: absolute;
         width: 100%;
-        bottom: 0;
         margin: 0;
         padding: 0;
-        bottom: 3rem;
+        bottom: 0;
+        overflow: auto;
+      }
+      .message-author {
+        margin-bottom: 0.25rem;
+        margin-left: 0rem;
+        font-weight: 700;
+      }
+      .message-content {
+        margin-bottom: 0;
+        margin-top: 0.5rem;
+        margin-left: 1rem;
       }
     </style>
   </head>
   <body>
     <div id="main">
-      <ul id="messages"></ul>
+      <ul id="messages">
+        <li>
+          <div class="message-author">doinkythederp</div>
+          <p class="message-content">Hello</p>
+        </li>
+      </ul>
     </div>
     <form id="send">
-      <input id="send-box" autocomplete="off" />
+      <input id="send-box" autocomplete="off" disabled />
       <button type="submit" id="send-button">Send</button>
     </form>
   </body>
