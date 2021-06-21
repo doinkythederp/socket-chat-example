@@ -18,6 +18,7 @@ const messageList = document.querySelector('#messages');
 /** @type {HTMLButtonElement} */
 const sendButton = document.querySelector('#message-send');
 
+
 sendForm.addEventListener('submit', function (event) {
   event.preventDefault();
   if (
@@ -33,6 +34,7 @@ sendForm.addEventListener('submit', function (event) {
     sendMessage(sendBox.value);
     sendBox.value = '';
   }
+	sendBox.focus();
 });
 
 sendBox.addEventListener('input', () => {
@@ -197,11 +199,11 @@ function handleSlashCommand(message) {
   socket.emit('info', (/** @type {{ maxMessageLength: number }} */ info) => {
     maxMessageLength = info.maxMessageLength;
     sendBox.disabled = false;
+		sendBox.focus();
   });
   system('Welcome! There are ' + '(?)' + ' other(s) online.');
-  system('Todo:');
-  system('Add connected/disconnected notifications');
-  system('Add username/nick support');
-  system('Add typing notifications');
-  system('Add channels? (maybe)');
+  system('Add connected/disconnected notifications', 'Todo List');
+  system('Add username/nick support', 'Todo List');
+  system('Add typing notifications', 'Todo List');
+  system('Add channels? (maybe)', 'Todo List');
 }
