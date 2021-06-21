@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
     }
   );
 	socket.on('chat:getinfo', (/** @type {(info: { maxMessageLength: number }) => void} */ cb) => {
-		cb({ maxMessageLength: config.maxMessageLength });
+		if (typeof cb === 'function') cb({ maxMessageLength: config.maxMessageLength });
 	});
 });
 
