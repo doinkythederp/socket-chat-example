@@ -202,6 +202,7 @@ function handleSlashCommand(message) {
 		sendBox.focus();
   });
   system('Welcome! There are ' + '(?)' + ' other(s) online.');
+  system('Add message history!', 'Todo List');
   system('Add connected/disconnected notifications', 'Todo List');
   system('Add username/nick support', 'Todo List');
   system('Add typing notifications', 'Todo List');
