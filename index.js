@@ -52,7 +52,7 @@ io.on('connection', (socket) => {
     ) {
       if (typeof messageData !== 'object')
 				return void respond({ status: 'messageInvalid' });
-        
+
       let { content, timestamp } = messageData;
 			// message is not a string
       if (typeof content !== 'string')
@@ -79,7 +79,7 @@ io.on('connection', (socket) => {
       }
 			const messageID = messageHistory.length.toString();
 			const message = { content, author: 'Anonymous#0000', id: messageID, timestamp: new Date(timestamp) };
-			messageHistory.push(message);
+			messageHistory.unshift(message);
       respond({ status: 'success', message });
       console.log('>', content);
       socket.broadcast.emit('chat:message', message);
