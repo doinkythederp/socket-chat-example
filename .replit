@@ -1,1 +1,1 @@
-run="node ."
+run="git pull; [ -d './node_modules' ] || npm ci; node ."
