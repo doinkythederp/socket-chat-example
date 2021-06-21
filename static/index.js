@@ -10,13 +10,13 @@ var maxMessageLength = Infinity;
 const socket = io();
 
 /** @type {HTMLFormElement} */
-const sendForm = document.querySelector('#send');
+const sendForm = document.querySelector('#send-gui');
 /** @type {HTMLInputElement} */
 const sendBox = document.querySelector('#send-box');
 /** @type {HTMLUListElement} */
 const messageList = document.querySelector('#messages');
 /** @type {HTMLButtonElement} */
-const sendButton = document.querySelector('#send-button');
+const sendButton = document.querySelector('#message-send');
 
 sendForm.addEventListener('submit', function (event) {
   event.preventDefault();
@@ -69,6 +69,7 @@ function addMessage(message, data = {}) {
 
   // Create the message li element
   let messageElement = document.createElement('li');
+	messageElement.classList.add('message');
 
   let messageUsernameElement = messageElement.appendChild(
     document.createElement('div')
@@ -101,7 +102,12 @@ function addMessage(message, data = {}) {
 		if (data.type && data.type.endsWith('-failed'))
 			messageContentElement.classList.add('is-invalid');
 	
-			messageUsernameElement.innerHTML = author;
+		// Add style to author's tag
+		let tagSplit = author.split('#');
+		if (tagSplit[1]) tagSplit[1] = '<span class="is-grey message-author-tag">#' + tagSplit[1] + '</span>';
+		author = tagSplit.join('');
+
+		messageUsernameElement.innerHTML = author;
 	}
 
 	// Add content to message
