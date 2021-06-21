@@ -19,7 +19,8 @@ const io = new ioServer(server);
 
 // Socket.io ratelimit
 const { RateLimiterMemory } = require('rate-limiter-flexible');
-const rateLimit = new RateLimiterMemory({ points: 8, duration: 8 });
+const sendRateLimit = new RateLimiterMemory({ points: 8, duration: 12 });
+const fetchRateLimit = new RateLimiterMemory({ points: 3, duration: 3 });
 
 // Message History handler
 const fs = require('fs');
@@ -70,7 +71,7 @@ io.on('connection', (socket) => {
 					status: 'messageTimestampInvalid'
 				}) : 0);
       try {
-        await rateLimit.consume(socket.handshake.address);
+        await sendRateLimit.consume(socket.handshake.address);
       } catch (rej) {
         return void(typeof messageData === 'function' ? respond({
           status: 'rateLimit',
@@ -86,8 +87,38 @@ io.on('connection', (socket) => {
     }
   );
 	socket.on('chat:getinfo', (/** @type {(info: { maxMessageLength: number }) => void} */ cb) => {
-		if (typeof cb === 'function') cb({ maxMessageLength: config.maxMessageLength });
+		if (typeof cb === 'function') cb(config);
 	});
+  socket.on('chat:fetchmessages', async function (
+      request,
+      /** @type {(response: { status: 'success', messages: Message[] } | { status: 'rateLimit', retryAfter: number } | { status: 'requestInvalid', maxNumber?: number }) => void} */
+      respond
+    ) {
+      if (typeof respond !== 'function') return;
+
+      try {
+        await fetchRateLimit.consume(socket.handshake.address);
+      } catch (rej) {
+        return void respond({
+          status: 'rateLimit',
+          retryAfter: rej.msBeforeNext
+        });
+      }
+
+      if (!Array.isArray(request))
+        return void respond({ status: 'requestInvalid' });
+
+      if (request[1] - request[0] < 0 || request[1] - request[0] > config.maxMessageFetch)
+        return void respond({ status: 'requestInvalid', maxNumber: config.maxMessageFetch });
+      
+      let messages;
+      try {
+        messages = messageHistory.slice(request[0], request[1]);
+      } catch {
+        return void respond({ status: 'requestInvalid' });
+      }
+      respond({ status: 'success', messages })
+  });
 });
 
 server.listen(process.env.PORT || 3000, () => {

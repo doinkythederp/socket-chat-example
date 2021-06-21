@@ -1,3 +1,4 @@
 {
-	"maxMessageLength": 200
+	"maxMessageLength": 200,
+	"maxMessageFetch": 25
 }

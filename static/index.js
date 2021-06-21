@@ -1,182 +1,201 @@
 /// <reference path='./commands.js' />
 /// <reference path='./socket.io.min.js' />
 /** @typedef {{ content: string, id: number, author: string, timestamp: string }} Message */
-'use strict';
+"use strict";
 
 var nextClientID = 0;
 var retryAfter = 0;
 var maxMessageLength = Infinity;
+var messagesLoaded = 0;
 
 const socket = io();
 
 /** @type {HTMLFormElement} */
-const sendForm = document.querySelector('#send-gui');
+const sendForm = document.querySelector("#send-gui");
 /** @type {HTMLInputElement} */
-const sendBox = document.querySelector('#send-box');
+const sendBox = document.querySelector("#send-box");
 /** @type {HTMLUListElement} */
-const messageList = document.querySelector('#messages');
+const messageList = document.querySelector("#messages");
 /** @type {HTMLButtonElement} */
-const sendButton = document.querySelector('#message-send');
+const sendButton = document.querySelector("#message-send");
 
-
-sendForm.addEventListener('submit', function (event) {
+sendForm.addEventListener("submit", function (event) {
   event.preventDefault();
   if (
     sendBox.value &&
     sendBox.value.length <= 200 &&
     Date.now() >= retryAfter
   ) {
-    if (sendBox.value.startsWith('/')) {
+    if (sendBox.value.startsWith("/")) {
       let slashArgs = sendBox.value.substr(1);
-      sendBox.value = '';
+      sendBox.value = "";
       return void handleSlashCommand(slashArgs);
     }
     sendMessage(sendBox.value);
-    sendBox.value = '';
+    sendBox.value = "";
   }
-	sendBox.focus();
+  sendBox.focus();
 });
 
-sendBox.addEventListener('input', () => {
+sendBox.addEventListener("input", function () {
   if (sendBox.value.length > 200) {
     if (!sendButton.disabled) {
-      sendButton.classList.add('is-invalid');
+      sendButton.classList.add("is-invalid");
       sendButton.disabled = true;
     }
     sendButton.textContent = (200 - sendBox.value.length).toString();
   } else if (sendButton.disabled) {
-    sendButton.classList.remove('is-invalid');
+    sendButton.classList.remove("is-invalid");
     sendButton.disabled = false;
-    sendButton.textContent = 'Send';
+    sendButton.textContent = "Send";
   }
 });
 
-socket.on('chat:message', function (/** @type {Message} */ message) {
-  const messageElement = addMessage(message.content, { id: message.id, author: message.author });
+socket.on("chat:message", function (/** @type {Message} */ message) {
+  const messageElement = addMessage(message.content, {
+    id: message.id,
+    author: message.author
+  });
   messageElement.dataset.id = message.id;
   messageElement.dataset.timestamp = message.timestamp;
   messageElement.dataset.author = message.author;
+  ++messagesLoaded;
 });
 
-socket.on('chat:sysmessage', system);
+socket.on("chat:sysmessage", system);
 
 /**
  * Adds a message to the client-side message list
  * @param {string} message The content of the message
  * @param {MessageData} data
+ * @param {boolean} [noAdd=false] Don't actually add the message, and just return the message element
  * @typedef {{ clientID?: number, id?: number, type: 'system' | 'command' | 'command-failed' | 'system-failed' | 'user', author: string }} MessageData
  */
-function addMessage(message, data = {}) {
-  console.log('Adding message with content: ' + message);
+function addMessage(message, data = {}, noAdd = false) {
+  console.log("Adding message with content: " + message);
 
   // Create the message li element
-  let messageElement = document.createElement('li');
-	messageElement.classList.add('message');
+  let messageElement = document.createElement("li");
+  messageElement.classList.add("message");
 
   let messageUsernameElement = messageElement.appendChild(
-    document.createElement('div')
+    document.createElement("div")
   );
-  messageUsernameElement.classList.add('message-author');
+  messageUsernameElement.classList.add("message-author");
 
   let messageContentElement = messageElement.appendChild(
-    document.createElement('p')
+    document.createElement("p")
   );
-  messageContentElement.classList.add('message-content');
+  messageContentElement.classList.add("message-content");
 
   // Edits the username, and the content coloring, based on type
   {
-		messageUsernameElement.textContent = data.author || '';
-		let author = messageUsernameElement.innerHTML;
+    messageUsernameElement.textContent = data.author || "";
+    let author = messageUsernameElement.innerHTML;
 
-		// System messages have a (>) symbol and are greyed out
-		if (data.type && data.type.startsWith('system')) {
-			author = '<i class=\'fas fa-chevron-circle-right\'></i> ' + author;
-			// Don't grey out system messages if failed
-			if (!data.type.endsWith('-failed'))
-				messageContentElement.classList.add('is-pending');
-		}
+    // System messages have a (>) symbol and are greyed out
+    if (data.type && data.type.startsWith("system")) {
+      author = "<i class='fas fa-chevron-circle-right'></i> " + author;
+      // Don't grey out system messages if failed
+      if (!data.type.endsWith("-failed"))
+        messageContentElement.classList.add("is-pending");
+    }
 
-		// Command messages have a cube symbol
-		if (data.type && data.type.startsWith('command'))
-			author = '<i class=\'fas fa-cubes\'></i> ' + author;
-	
-		// Failed messages are red
-		if (data.type && data.type.endsWith('-failed'))
-			messageContentElement.classList.add('is-invalid');
-	
-		// Add style to author's tag
-		let tagSplit = author.split('#');
-		if (tagSplit[1]) tagSplit[1] = '<span class="is-grey message-author-tag">#' + tagSplit[1] + '</span>';
-		author = tagSplit.join('');
+    // Command messages have a cube symbol
+    if (data.type && data.type.startsWith("command"))
+      author = "<i class='fas fa-cubes'></i> " + author;
 
-		messageUsernameElement.innerHTML = author;
-	}
+    // Failed messages are red
+    if (data.type && data.type.endsWith("-failed"))
+      messageContentElement.classList.add("is-invalid");
 
-	// Add content to message
-	messageContentElement.textContent = message;
+    // Add style to author's tag
+    let tagSplit = author.split("#");
+    if (tagSplit[1])
+      tagSplit[1] =
+        '<span class="is-grey message-author-tag">#' + tagSplit[1] + "</span>";
+    author = tagSplit.join("");
 
-	// Replace newlines with <br> tags
-  messageContentElement.innerHTML = messageContentElement.innerHTML.split('\n').join('<br/>');
+    messageUsernameElement.innerHTML = author;
+  }
 
-  if (data.type === 'user') {
+  // Add content to message
+  messageContentElement.textContent = message;
+
+  // Replace newlines with <br> tags
+  messageContentElement.innerHTML = messageContentElement.innerHTML
+    .split("\n")
+    .join("<br/>");
+
+  if (data.type === "user") {
     if (data.clientID) messageElement.dataset.clientid = data.clientID;
-    messageContentElement.classList.add('is-pending');
+    messageContentElement.classList.add("is-pending");
     setTimeout(function () {
-      if (messageContentElement.classList.contains('is-pending')) {
-        messageContentElement.classList.remove('is-pending');
-        messageContentElement.classList.add('is-invalid');
+      if (messageContentElement.classList.contains("is-pending")) {
+        messageContentElement.classList.remove("is-pending");
+        messageContentElement.classList.add("is-invalid");
       }
     }, 8000);
   }
-  messageList.appendChild(messageElement);
+  if (!noAdd) {
+    messageList.appendChild(messageElement);
+  }
   window.scrollTo(0, document.body.scrollHeight);
   return messageElement;
 }
 
-function system(msg, name = 'System') {
-  addMessage(msg, { type: 'system', author: name });
+function system(msg, name = "System") {
+  addMessage(msg, { type: "system", author: name });
 }
 
-function commandResponse(msg, failed = false, name = 'Slash Command') {
+function commandResponse(msg, failed = false, name = "Slash Command") {
   if (!failed) {
-    addMessage(msg, { type: 'command', author: name });
+    addMessage(msg, { type: "command", author: name });
   } else {
-    addMessage(msg, { type: 'command-failed', author: name });
+    addMessage(msg, { type: "command-failed", author: name });
   }
 }
 
 function sendMessage(message) {
   const id = nextClientID.toString();
   ++nextClientID;
-  const messageElement = addMessage(message, { clientID: id, type: 'user', author: 'Anonymous#0000' });
+  const messageElement = addMessage(message, {
+    clientID: id,
+    type: "user",
+    author: "Anonymous#0000"
+  });
   socket.emit(
-    'chat:send',
+    "chat:send",
     { content: message, timestamp: new Date() },
     /** @param {{ status: 'success' | 'messageTimestampInvalid' } | { status: 'rateLimit', retryAfter: number } | { status: 'messageInvalid', maxLength?: number }} res */
     function (res) {
-			let messageContentElement = messageElement.querySelector('.message-content');
-      messageContentElement.classList.remove('is-pending');
+      let messageContentElement =
+        messageElement.querySelector(".message-content");
+      messageContentElement.classList.remove("is-pending");
       if (
-        res.status === 'messageInvalid' ||
-        res.status === 'messageTimestampInvalid'
+        res.status === "messageInvalid" ||
+        res.status === "messageTimestampInvalid"
       ) {
-        messageContentElement.classList.add('is-invalid');
-        if ('maxLength' in res) {
+        messageContentElement.classList.add("is-invalid");
+        if ("maxLength" in res) {
           maxMessageLength = res.maxLength;
-          console.log('Message error: message too long');
+          console.log("Message error: message too long");
         } else {
-          console.log('Message error: content invalid');
+          console.log("Message error: content invalid");
         }
       }
-      if (res.status === 'rateLimit') {
+      if (res.status === "rateLimit") {
         console.log(
-          'Message with client ID ' +
+          "Message with client ID " +
             id +
-            ' was ratelimited! Blocking messages for now.'
+            " was ratelimited! Blocking messages for now."
         );
-        retryAfter = Date.now() + data['retry-ms'];
-        messageContentElement.classList.add('is-invalid');
-        system('You\'re sending messages too fast! Please slow down.');
+        retryAfter = Date.now() + data["retry-ms"];
+        messageContentElement.classList.add("is-invalid");
+        system("You're sending messages too fast! Please slow down.");
+      }
+      if (res.status === "success") {
+        ++messagesLoaded;
       }
     }
   );
@@ -184,27 +203,68 @@ function sendMessage(message) {
 
 /** @param {string} message */
 function handleSlashCommand(message) {
-  let args = message.trim().split(' ');
+  let args = message.trim().split(" ");
   let command = args.shift().toLowerCase();
   const cmdExports = slashCommands[command];
   if (!cmdExports)
     return void commandResponse(
-      'Invalid slash command; say \'/help\' for a list of commands.',
+      "Invalid slash command; say '/help' for a list of commands.",
       true
     );
   cmdExports.exec(args);
 }
+/**
+ * Loads more messages onto the screen
+ * @param {number} num The amount to load - must be less than 25
+ * @typedef {{ status: 'success', messages: Message[] } | { status: 'rateLimit' | 'messageCountInvalid' }} MessageFetchResponse
+ */
+function fetchMessages(num) {
+  if (!num) return;
+  socket.emit(
+    "chat:fetchmessages",
+    /** @type {[number, number]} */
+    [messagesLoaded, messagesLoaded + num],
+    function (/** @type {MessageFetchResponse} */ res) {
+      if (res.status === "success") {
+        /** @type {string[]} */
+        let messages = [];
+        for (let message of res.messages) {
+          const messageElement = addMessage(
+            message.content,
+            { id: message.id, author: message.author },
+            // messages are added using a different method than addMessage
+            true
+          );
+          
+          messageElement.dataset.id = message.id;
+          messageElement.dataset.timestamp = message.timestamp;
+          messageElement.dataset.author = message.author;
+
+          // messages are recieved newest first.
+          // in the HTML, older items should be first.
+          messages.unshift(messageElement.outerHTML);
+          ++messagesLoaded;
+        }
+        // this does add every message at once instead of one by one
+        messageList.innerHTML = messages.join('\n') + messageList.innerHTML;
+      }
+    }
+  );
+}
 
 {
-  socket.emit('chat:getinfo', (/** @type {{ maxMessageLength: number }} */ info) => {
-    maxMessageLength = info.maxMessageLength;
-    sendBox.disabled = false;
-		sendBox.focus();
-  });
-  system('Welcome! There are ' + '?' + ' other(s) online.');
-  system('Add message history!', 'Todo List');
-  system('Add connected/disconnected notifications', 'Todo List');
-  system('Add username/nick support', 'Todo List');
-  system('Add typing notifications', 'Todo List');
-  system('Add channels? (maybe)', 'Todo List');
+  socket.emit(
+    "chat:getinfo",
+    function (/** @type {{ maxMessageLength: number }} */ info) {
+      maxMessageLength = info.maxMessageLength;
+      sendBox.disabled = false;
+      sendBox.focus();
+    }
+  );
+  system("Welcome! There are " + "?" + " other(s) online.");
+  system("Add message history!", "Todo List");
+  system("Add connected/disconnected notifications", "Todo List");
+  system("Add username/nick support", "Todo List");
+  system("Add typing notifications", "Todo List");
+  system("Add channels? (maybe)", "Todo List");
 }
