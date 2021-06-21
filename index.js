@@ -43,7 +43,7 @@ io.on('connection', (socket) => {
     console.log('User disconnected:', reason);
   });
   socket.on(
-    'message',
+    'chat:send',
     async function (
       /** @type {{ content: string, timestamp: string }} */
       { content, timestamp },
@@ -81,7 +81,7 @@ io.on('connection', (socket) => {
       socket.broadcast.emit('message', message);
     }
   );
-	socket.on('info', (/** @type {(info: { maxMessageLength: number }) => void} */ cb) => {
+	socket.on('chat:getinfo', (/** @type {(info: { maxMessageLength: number }) => void} */ cb) => {
 		cb({ maxMessageLength: config.maxMessageLength });
 	});
 });

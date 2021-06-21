@@ -51,14 +51,14 @@ sendBox.addEventListener('input', () => {
   }
 });
 
-socket.on('message', function (/** @type {Message} */ message) {
+socket.on('chat:message', function (/** @type {Message} */ message) {
   const messageElement = addMessage(message.content, { id: message.id, author: message.author });
   messageElement.dataset.id = message.id;
   messageElement.dataset.timestamp = message.timestamp;
   messageElement.dataset.author = message.author;
 });
 
-socket.on('system', system);
+socket.on('chat:sysmessage', system);
 
 /**
  * Adds a message to the client-side message list
@@ -150,7 +150,7 @@ function sendMessage(message) {
   ++nextClientID;
   const messageElement = addMessage(message, { clientID: id, type: 'user', author: 'Anonymous#0000' });
   socket.emit(
-    'message',
+    'chat:send',
     { content: message, timestamp: new Date() },
     /** @param {{ status: 'success' | 'messageTimestampInvalid' } | { status: 'rateLimit', retryAfter: number } | { status: 'messageInvalid', maxLength?: number }} res */
     function (res) {
@@ -196,7 +196,7 @@ function handleSlashCommand(message) {
 }
 
 {
-  socket.emit('info', (/** @type {{ maxMessageLength: number }} */ info) => {
+  socket.emit('chat:getinfo', (/** @type {{ maxMessageLength: number }} */ info) => {
     maxMessageLength = info.maxMessageLength;
     sendBox.disabled = false;
 		sendBox.focus();
