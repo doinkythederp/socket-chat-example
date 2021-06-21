@@ -46,10 +46,14 @@ io.on('connection', (socket) => {
     'chat:send',
     async function (
       /** @type {{ content: string, timestamp: string }} */
-      { content, timestamp },
+      messageData,
       /** @type {(response: { status: 'success' | 'messageTimestampInvalid' } | { status: 'rateLimit', retryAfter: number } | { status: 'messageInvalid', maxLength?: number }) => void} */
       respond
     ) {
+      if (typeof messageData !== 'object')
+				return void respond({ status: 'messageInvalid' });
+        
+      let { content, timestamp } = messageData;
 			// message is not a string
       if (typeof content !== 'string')
 				return void respond({ status: 'messageInvalid' });
