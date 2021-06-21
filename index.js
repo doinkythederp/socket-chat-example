@@ -51,36 +51,36 @@ io.on('connection', (socket) => {
       respond
     ) {
       if (typeof messageData !== 'object')
-				return void respond({ status: 'messageInvalid' });
+				return void(typeof messageData === 'function' ? respond({ status: 'messageInvalid' }) : 0);
 
       let { content, timestamp } = messageData;
 			// message is not a string
       if (typeof content !== 'string')
-				return void respond({ status: 'messageInvalid' });
+				return void(typeof messageData === 'function' ? respond({ status: 'messageInvalid' }) : 0);
 
 			// message is too long
 			if (content.length > config.maxMessageLength)
-        return void respond({
+        return void(typeof messageData === 'function' ? respond({
           status: 'messageInvalid',
           maxLength: config.maxMessageLength
-        });
+        }) : 0);
 			// message timed out
       if (timestamp - 8000 > Date.now())
-				return void respond({
+				return void(typeof messageData === 'function' ? respond({
 					status: 'messageTimestampInvalid'
-				});
+				}) : 0);
       try {
         await rateLimit.consume(socket.handshake.address);
       } catch (rej) {
-        return void respond({
+        return void(typeof messageData === 'function' ? respond({
           status: 'rateLimit',
           retryAfter: rej.msBeforeNext
-        });
+        }) : 0);
       }
 			const messageID = messageHistory.length.toString();
 			const message = { content, author: 'Anonymous#0000', id: messageID, timestamp: new Date(timestamp) };
 			messageHistory.unshift(message);
-      respond({ status: 'success', message });
+      if (typeof messageData === 'function') respond({ status: 'success', message });
       console.log('>', content);
       socket.broadcast.emit('chat:message', message);
     }
