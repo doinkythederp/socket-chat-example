@@ -78,7 +78,7 @@ io.on('connection', (socket) => {
 			messageHistory.push(message);
       respond({ status: 'success', message });
       console.log('>', content);
-      socket.broadcast.emit('message', message);
+      socket.broadcast.emit('chat:message', message);
     }
   );
 	socket.on('chat:getinfo', (/** @type {(info: { maxMessageLength: number }) => void} */ cb) => {
