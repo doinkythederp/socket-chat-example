@@ -285,7 +285,7 @@ function fetchMessages(num, callback) {
           if (!firstElem) firstElem = messageElement;
           ++messagesLoaded;
         }
-        firstElem.scrollIntoView({block: "start", inline: "nearest"});
+        if (!firstElem) firstElem.scrollIntoView({block: "start", inline: "nearest"});
       }
       if (callback) callback(res);
     }
