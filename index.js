@@ -1,6 +1,6 @@
 /// <reference types='node' />
 /** @typedef {{ content: string, id: number, author: string, timestamp: Date }} Message */
-/** @typedef {{ version: 1, messages: Message[] }} MessageHistory */
+/** @typedef {{ version: 1, messages: Message[] }} Database */
 'use strict';
 
 // Config file
@@ -26,10 +26,10 @@ const fetchRateLimit = new RateLimiterMemory({ points: 3, duration: 3 });
 // Message History handler
 const fs = require('fs');
 const v8 = require('v8');
-/** @type {MessageHistory} */
-const messageHistory = readMessageHistory(__dirname + '/messages.bin');
-const messageHistoryInterval = setInterval(() => {
-	fs.writeFileSync(__dirname + '/messages.bin', v8.serialize(messageHistory));
+/** @type {Database} */
+const database = loadDatabase(__dirname + '/database.bin');
+const dbSaver = setInterval(() => {
+	fs.writeFileSync(__dirname + '/database.bin', v8.serialize(database));
 }, 5000);
 
 /** @type {Set<import('socket.io').Socket>} */
@@ -79,9 +79,9 @@ io.on('connection', (socket) => {
           retryAfter: rej.msBeforeNext
         }) : 0);
       }
-			const messageID = messageHistory.messages.length.toString();
+			const messageID = database.messages.length.toString();
 			const message = { content, author: 'Anonymous#0000', id: messageID, timestamp: new Date(timestamp) };
-			messageHistory.messages.unshift(message);
+			database.messages.unshift(message);
       if (typeof respond === 'function') respond({ status: 'success', message });
       console.log('>', content);
       socket.broadcast.emit('chat:message', message);
@@ -114,11 +114,11 @@ io.on('connection', (socket) => {
       
       let messages;
       try {
-        messages = messageHistory.messages.slice(request[0], request[1]);
+        messages = database.messages.slice(request[0], request[1]);
       } catch {
         return void respond({ status: 'requestInvalid' });
       }
-      respond({ status: 'success', messages, allLoaded: request[1] - 1 >= messageHistory.messages.length })
+      respond({ status: 'success', messages, allLoaded: request[1] - 1 >= database.messages.length })
   });
 });
 
@@ -140,14 +140,14 @@ async function stop() {
   server.close((err) => {
     if (err) throw err;
 		console.log('Saving message history...');
-		clearInterval(messageHistoryInterval);
-		fs.writeFileSync(__dirname + '/messages.bin', v8.serialize(messageHistory));
+		clearInterval(dbSaver);
+		fs.writeFileSync(__dirname + '/database.bin', v8.serialize(database));
     console.log('Done!');
 		process.exitCode = 0;
   });
 }
 /** @param {string} path */
-function readMessageHistory(path) {
+function loadDatabase(path) {
   // latest message history version
   const CURRENT_VERSION = 1;
 
@@ -164,6 +164,6 @@ function readMessageHistory(path) {
     decoded = { version: 1, messages: decoded.reverse() };
   }
 
-  console.log('Loaded message history with format v' + version + (version !== CURRENT_VERSION ? ' (Converted to v' + CURRENT_VERSION + ')' : ''))
+  console.log('Loaded database has format v' + version + (version !== CURRENT_VERSION ? ' (Converted to v' + CURRENT_VERSION + ')' : ''))
   return decoded;
 }
