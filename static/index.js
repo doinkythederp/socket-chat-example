@@ -5,8 +5,13 @@
 
 var nextClientID = 0;
 var retryAfter = 0;
-var maxMessageLength = Infinity;
+/**
+ * @typedef {{ maxMessageLength: number, maxMessageFetch: number }} ServerConfig
+ * @type {ServerConfig}
+ */
+var config = {};
 var messagesLoaded = 0;
+var allMessagesLoaded = false;
 
 const socket = io();
 
@@ -38,17 +43,21 @@ sendForm.addEventListener("submit", function (event) {
 });
 
 sendBox.addEventListener("input", function () {
-  if (sendBox.value.length > 200) {
+  if (sendBox.value.length > config.maxMessageLength) {
     if (!sendButton.disabled) {
-      sendButton.classList.add("is-invalid");
+      sendButton.classList.add("is-danger");
       sendButton.disabled = true;
     }
-    sendButton.textContent = (200 - sendBox.value.length).toString();
+    sendButton.textContent = (config.maxMessageLength - sendBox.value.length).toString();
   } else if (sendButton.disabled) {
-    sendButton.classList.remove("is-invalid");
+    sendButton.classList.remove("is-danger");
     sendButton.disabled = false;
     sendButton.textContent = "Send";
   }
+});
+
+window.addEventListener('scroll', function () {
+  if (window.pageYOffset <= 25) fetchMessages(25);
 });
 
 socket.on("chat:message", function (/** @type {Message} */ message) {
@@ -62,14 +71,15 @@ socket.on("chat:message", function (/** @type {Message} */ message) {
   ++messagesLoaded;
 });
 
-socket.on("chat:sysmessage", system);
+socket.on("chat:sysmessage", echo);
 
 /**
  * Adds a message to the client-side message list
  * @param {string} message The content of the message
  * @param {MessageData} data
  * @param {boolean} [noAdd=false] Don't actually add the message, and just return the message element
- * @typedef {{ clientID?: number, id?: number, type: 'system' | 'command' | 'command-failed' | 'system-failed' | 'user', author: string }} MessageData
+ * @returns {HTMLLIElement} The message HTML element
+ * @typedef {{ clientID?: number, id?: number, type?: 'system' | 'command' | 'command-failed' | 'system-failed' | 'experiment' | 'experiment-failed' | 'pending' | 'none', author: string }} MessageData
  */
 function addMessage(message, data = {}, noAdd = false) {
   console.log("Adding message with content: " + message);
@@ -98,16 +108,20 @@ function addMessage(message, data = {}, noAdd = false) {
       author = "<i class='fas fa-chevron-circle-right'></i> " + author;
       // Don't grey out system messages if failed
       if (!data.type.endsWith("-failed"))
-        messageContentElement.classList.add("is-pending");
+        messageContentElement.classList.add("is-grey");
     }
 
     // Command messages have a cube symbol
     if (data.type && data.type.startsWith("command"))
       author = "<i class='fas fa-cubes'></i> " + author;
 
+    // Experiment messages have a flask
+    if (data.type && data.type.startsWith("experiment"))
+      author = "<i class='fas fa-flask'></i> " + author;
+
     // Failed messages are red
     if (data.type && data.type.endsWith("-failed"))
-      messageContentElement.classList.add("is-invalid");
+      messageContentElement.classList.add("is-danger");
 
     // Add style to author's tag
     let tagSplit = author.split("#");
@@ -127,33 +141,52 @@ function addMessage(message, data = {}, noAdd = false) {
     .split("\n")
     .join("<br/>");
 
-  if (data.type === "user") {
+  if (data.type === "pending") {
     if (data.clientID) messageElement.dataset.clientid = data.clientID;
     messageContentElement.classList.add("is-pending");
     setTimeout(function () {
       if (messageContentElement.classList.contains("is-pending")) {
         messageContentElement.classList.remove("is-pending");
-        messageContentElement.classList.add("is-invalid");
+        messageContentElement.classList.add("is-danger");
       }
     }, 8000);
   }
   if (!noAdd) {
     messageList.appendChild(messageElement);
+    window.scrollTo(0, document.body.scrollHeight);
   }
-  window.scrollTo(0, document.body.scrollHeight);
   return messageElement;
 }
+/**
+ * Echos a message to that chat that only the client can see
+ * @param {string} msg The message to add to the chat
+ * @param {'system' | 'command' | 'command-failed' | 'system-failed' | 'experiment' | 'experiment-failed' | 'none'} [type="system"] The type of message to add. Modifies the chat color and username icon.
+ * @param {string} [name] 
+ */
+function echo(msg, type = "system", name) {
+  if (!name) {
+    switch (type) {
+      case "command":
+      case "command-failed":
+        name = "Slash Command";
+        break;
+      
+      case "system":
+      case "system-failed":
+        name = "System";
+        break;
 
-function system(msg, name = "System") {
-  addMessage(msg, { type: "system", author: name });
-}
-
-function commandResponse(msg, failed = false, name = "Slash Command") {
-  if (!failed) {
-    addMessage(msg, { type: "command", author: name });
-  } else {
-    addMessage(msg, { type: "command-failed", author: name });
+      case "experiment":
+      case "experiment-failed":
+        name = "Experiment";
+        break;
+    
+      default:
+        name = "Discarp#0000";
+        break;
+    }
   }
+  addMessage(msg, { type: type, author: name });
 }
 
 function sendMessage(message) {
@@ -161,27 +194,27 @@ function sendMessage(message) {
   ++nextClientID;
   const messageElement = addMessage(message, {
     clientID: id,
-    type: "user",
+    type: "pending",
     author: "Anonymous#0000"
   });
   socket.emit(
     "chat:send",
     { content: message, timestamp: new Date() },
-    /** @param {{ status: 'success' | 'messageTimestampInvalid' } | { status: 'rateLimit', retryAfter: number } | { status: 'messageInvalid', maxLength?: number }} res */
+    /** @param {{ status: 'success' | 'messageTimestampdanger' } | { status: 'rateLimit', retryAfter: number } | { status: 'messagedanger', maxLength?: number }} res */
     function (res) {
       let messageContentElement =
         messageElement.querySelector(".message-content");
       messageContentElement.classList.remove("is-pending");
       if (
-        res.status === "messageInvalid" ||
-        res.status === "messageTimestampInvalid"
+        res.status === "messagedanger" ||
+        res.status === "messageTimestampdanger"
       ) {
-        messageContentElement.classList.add("is-invalid");
+        messageContentElement.classList.add("is-danger");
         if ("maxLength" in res) {
-          maxMessageLength = res.maxLength;
+          config.maxMessageLength = res.maxLength;
           console.log("Message error: message too long");
         } else {
-          console.log("Message error: content invalid");
+          console.log("Message error: content danger");
         }
       }
       if (res.status === "rateLimit") {
@@ -190,9 +223,9 @@ function sendMessage(message) {
             id +
             " was ratelimited! Blocking messages for now."
         );
-        retryAfter = Date.now() + data["retry-ms"];
-        messageContentElement.classList.add("is-invalid");
-        system("You're sending messages too fast! Please slow down.");
+        retryAfter = Date.now() + res.retryAfter;
+        messageContentElement.classList.add("is-danger");
+        echo("You're sending messages too fast! Please slow down.");
       }
       if (res.status === "success") {
         ++messagesLoaded;
@@ -206,28 +239,34 @@ function handleSlashCommand(message) {
   let args = message.trim().split(" ");
   let command = args.shift().toLowerCase();
   const cmdExports = slashCommands[command];
-  if (!cmdExports)
-    return void commandResponse(
+  if (!cmdExports || (cmdExports.experimental && !experimentsEnabled))
+    return void echo(
       "Invalid slash command; say '/help' for a list of commands.",
-      true
+      "command-failed"
     );
   cmdExports.exec(args);
 }
 /**
  * Loads more messages onto the screen
  * @param {number} num The amount to load - must be less than 25
- * @typedef {{ status: 'success', messages: Message[] } | { status: 'rateLimit' | 'messageCountInvalid' }} MessageFetchResponse
+ * @param {(res: MessageFetchResponse) => void} [callback]
+ * @typedef {{ status: 'success', messages: Message[], allLoaded: boolean } | { status: 'rateLimit' | 'messageCountdanger' }} MessageFetchResponse
  */
-function fetchMessages(num) {
+function fetchMessages(num, callback) {
   if (!num) return;
+  if (allMessagesLoaded) return;
+  console.log('Requesting ' + num + ' more messages')
   socket.emit(
     "chat:fetchmessages",
     /** @type {[number, number]} */
     [messagesLoaded, messagesLoaded + num],
     function (/** @type {MessageFetchResponse} */ res) {
+      if (res.allLoaded) allMessagesLoaded = true;
       if (res.status === "success") {
-        /** @type {string[]} */
-        let messages = [];
+        /** @type {HTMLLIElement} */
+        let firstElem;
+        // calculates Y to scroll to
+        //let scroll = document.documentElement.scrollHeight - window.innerHeight;
         for (let message of res.messages) {
           const messageElement = addMessage(
             message.content,
@@ -242,12 +281,13 @@ function fetchMessages(num) {
 
           // messages are recieved newest first.
           // in the HTML, older items should be first.
-          messages.unshift(messageElement.outerHTML);
+          messageList.prepend(messageElement);
+          if (!firstElem) firstElem = messageElement;
           ++messagesLoaded;
         }
-        // this does add every message at once instead of one by one
-        messageList.innerHTML = messages.join('\n') + messageList.innerHTML;
+        firstElem.scrollIntoView({block: "start", inline: "nearest"});
       }
+      if (callback) callback(res);
     }
   );
 }
@@ -255,16 +295,17 @@ function fetchMessages(num) {
 {
   socket.emit(
     "chat:getinfo",
-    function (/** @type {{ maxMessageLength: number }} */ info) {
-      maxMessageLength = info.maxMessageLength;
+    function (/** @type {ServerConfig} */ info) {
+      config = info;
       sendBox.disabled = false;
       sendBox.focus();
     }
   );
-  system("Welcome! There are " + "?" + " other(s) online.");
-  system("Add message history!", "Todo List");
-  system("Add connected/disconnected notifications", "Todo List");
-  system("Add username/nick support", "Todo List");
-  system("Add typing notifications", "Todo List");
-  system("Add channels? (maybe)", "Todo List");
+  fetchMessages(25);
+  echo("Welcome! There are " + "?" + " other(s) online.");
+  echo("Add message history!", "system", "Todo List");
+  echo("Add connected/disconnected notifications", "system", "Todo List");
+  echo("Add username/nick support", "system", "Todo List");
+  echo("Add typing notifications", "system", "Todo List");
+  echo("Add channels? (maybe)", "system", "Todo List");
 }
