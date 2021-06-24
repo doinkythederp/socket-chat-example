@@ -1,6 +1,4 @@
 /// <reference types='node' />
-/** @typedef {{ content: string, id: number, author: string, timestamp: Date }} Message */
-/** @typedef {{ version: 1, messages: Message[] }} Database */
 'use strict';
 
 // Config file
@@ -20,22 +18,36 @@ const io = new ioServer(server);
 
 // Socket.io ratelimit
 const { RateLimiterMemory } = require('rate-limiter-flexible');
-const sendRateLimit = new RateLimiterMemory({ points: 8, duration: 12 });
-const fetchRateLimit = new RateLimiterMemory({ points: 3, duration: 3 });
 
-// Message History handler
+// Database handler
 const fs = require('fs');
-const v8 = require('v8');
+const loadDatabase = require('./loadDatabase.js');
 /** @type {Database} */
-const database = loadDatabase(__dirname + '/database.bin');
-const dbSaver = setInterval(() => {
-	fs.writeFileSync(__dirname + '/database.bin', v8.serialize(database));
-}, 5000);
+const { database, stopDatabaseSave } = loadDatabase(__dirname + '/database.bin');
 
 /** @type {Set<import('socket.io').Socket>} */
 var sockets = new Set();
+/** @type {{ [eventName: string]: {exec: Function, rateLimit: RateLimiterMemory?} }} */
+var events = new Map();
 
 app.use(express.static(__dirname + '/static'));
+/** @typedef {(this: { socket: import('socket.io').Socket, database: import('./loadDatabase.js').Database, rateLimit?: RateLimiterMemory, events: typeof events, config: typeof config }, args?: unknown, callback?: unknown) => void} EventHandler */
+/** @typedef {{ socket: import('socket.io').Socket, database: import('./loadDatabase.js').Database, rateLimit?: RateLimiterMemory, events: typeof events, config: typeof config }} EventHandlerThis */
+fs.readdirSync(__dirname + '/events').forEach((category) => {
+  fs.readdirSync(__dirname + '/events/' + category).forEach((eventFile) => {
+    /** @type {{ rateLimit?: { points: number, duration: number}, exec: EventHandler }} */
+    const handler = require('./events/' + category + '/' + eventFile);
+    /** @type {RateLimiterMemory?} */
+    let rateLimit = null;
+    if (handler.rateLimit) rateLimit = new RateLimiterMemory(handler.rateLimit);
+    events[`${category}:${eventFile.split('.')[0]}`] = {
+      exec(socket, ...args) {
+        handler.exec.apply({ rateLimit, events, socket, config, database }, args);
+      },
+      rateLimit
+    };
+  });
+});
 
 io.on('connection', (socket) => {
   sockets.add(socket);
@@ -44,81 +56,9 @@ io.on('connection', (socket) => {
     sockets.delete(socket);
     console.log('User disconnected:', reason);
   });
-  socket.on(
-    'chat:send',
-    async function (
-      /** @type {{ content: string, timestamp: string }} */
-      messageData,
-      /** @type {(response: { status: 'success' | 'messageTimestampInvalid' } | { status: 'rateLimit', retryAfter: number } | { status: 'messageInvalid', maxLength?: number }) => void} */
-      respond
-    ) {
-      if (typeof messageData !== 'object')
-				return void(typeof respond === 'function' ? respond({ status: 'messageInvalid' }) : 0);
 
-      let { content, timestamp } = messageData;
-			// message is not a string
-      if (typeof content !== 'string')
-				return void(typeof respond === 'function' ? respond({ status: 'messageInvalid' }) : 0);
-
-			// message is too long
-			if (content.length > config.maxMessageLength)
-        return void(typeof respond === 'function' ? respond({
-          status: 'messageInvalid',
-          maxLength: config.maxMessageLength
-        }) : 0);
-			// message timed out
-      if (timestamp - 8000 > Date.now())
-				return void(typeof respond === 'function' ? respond({
-					status: 'messageTimestampInvalid'
-				}) : 0);
-      try {
-        await sendRateLimit.consume(socket.handshake.address);
-      } catch (rej) {
-        return void(typeof respond === 'function' ? respond({
-          status: 'rateLimit',
-          retryAfter: rej.msBeforeNext
-        }) : 0);
-      }
-			const messageID = database.messages.length.toString();
-			const message = { content, author: 'Anonymous#0000', id: messageID, timestamp: new Date(timestamp) };
-			database.messages.unshift(message);
-      if (typeof respond === 'function') respond({ status: 'success', message });
-      console.log('>', content);
-      socket.broadcast.emit('chat:message', message);
-    }
-  );
-	socket.on('chat:getinfo', (/** @type {(info: { maxMessageLength: number }) => void} */ cb) => {
-		if (typeof cb === 'function') cb(config);
-	});
-  socket.on('chat:fetchmessages', async function (
-      request,
-      /** @type {(response: { status: 'success', messages: Message[], allLoaded: boolean } | { status: 'rateLimit', retryAfter: number } | { status: 'requestInvalid', maxNumber?: number }) => void} */
-      respond
-    ) {
-      if (typeof respond !== 'function') return;
-
-      try {
-        await fetchRateLimit.consume(socket.handshake.address);
-      } catch (rej) {
-        return void respond({
-          status: 'rateLimit',
-          retryAfter: rej.msBeforeNext
-        });
-      }
-
-      if (!Array.isArray(request))
-        return void respond({ status: 'requestInvalid' });
-
-      if (request[1] - request[0] < 0 || request[1] - request[0] > config.maxMessageFetch)
-        return void respond({ status: 'requestInvalid', maxNumber: config.maxMessageFetch });
-      
-      let messages;
-      try {
-        messages = database.messages.slice(request[0], request[1]);
-      } catch {
-        return void respond({ status: 'requestInvalid' });
-      }
-      respond({ status: 'success', messages, allLoaded: request[1] - 1 >= database.messages.length })
+  Object.entries(events).forEach(([name, { exec }]) => {
+    socket.on(name, exec.bind(null, socket));
   });
 });
 
@@ -139,31 +79,9 @@ async function stop() {
   console.log('Stopping server...');
   server.close((err) => {
     if (err) throw err;
-		console.log('Saving message history...');
-		clearInterval(dbSaver);
-		fs.writeFileSync(__dirname + '/database.bin', v8.serialize(database));
+    console.log('Saving message history...');
+    stopDatabaseSave();
     console.log('Done!');
-		process.exitCode = 0;
+    process.exitCode = 0;
   });
-}
-/** @param {string} path */
-function loadDatabase(path) {
-  // latest message history version
-  const CURRENT_VERSION = 1;
-
-  /** @type {Message[] | { version: 1, messages: Message[] }} */
-  let decoded = v8.deserialize(fs.readFileSync(path));
-
-  // detect message history version
-  let version;
-  if (Array.isArray(decoded)) version = 0;
-  else version = decoded.version;
-
-  // convert to latest version
-  if (version === 0) {
-    decoded = { version: 1, messages: decoded.reverse() };
-  }
-
-  console.log('Loaded database has format v' + version + (version !== CURRENT_VERSION ? ' (Converted to v' + CURRENT_VERSION + ')' : ''))
-  return decoded;
 }
