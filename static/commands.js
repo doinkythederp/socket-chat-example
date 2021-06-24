@@ -34,7 +34,7 @@ var slashCommands = {
       echo(args.join(" ").split("\\n").join("\n"), "command");
     }
   },
-  experimental: {
+  experiments: {
     desc: "Toggles experimental commands",
     exec: function (args) {
       let keyword;
